@@ -114,7 +114,7 @@ export const api = {
 
   async getReplies(limit = 20, cursor?: string) {
     if (API_BASE_URL) {
-      const url = new URL(`${API_BASE_URL}/replies`);
+      const url = new URL(`${API_BASE_URL}/getReplies`);
       url.searchParams.append('limit', limit.toString());
       if (cursor) url.searchParams.append('cursor', cursor);
       const res = await fetch(url.toString());
@@ -129,7 +129,7 @@ export const api = {
 
   async getReply(postId: string) {
     if (API_BASE_URL) {
-      const res = await fetch(`${API_BASE_URL}/replies/${postId}`);
+      const res = await fetch(`${API_BASE_URL}/getReply/${postId}`);
       return res.json();
     }
 
@@ -168,7 +168,7 @@ export const api = {
 
   async deleteReply(postId: string, apiKey: string) {
     if (API_BASE_URL) {
-      const res = await fetch(`${API_BASE_URL}/reply/${postId}`, {
+      const res = await fetch(`${API_BASE_URL}/deleteReply/${postId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
@@ -188,7 +188,7 @@ export const api = {
 
   async adminGetReplies(apiKey: string, filters: any = {}) {
     if (API_BASE_URL) {
-      const url = new URL(`${API_BASE_URL}/admin/replies`);
+      const url = new URL(`${API_BASE_URL}/adminReplies`);
       Object.keys(filters).forEach(key => url.searchParams.append(key, filters[key]));
       const res = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${apiKey}` }
