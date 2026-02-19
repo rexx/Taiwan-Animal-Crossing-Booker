@@ -24,7 +24,7 @@ Tech Stack：
     - 部署：GitHub Pages（靜態）
     - CI/CD：GitHub Actions
 
-  Backend：GCP Cloud Functions 2nd gen (Node.js 20)
+  Backend：GCP Cloud Functions 2nd gen (Node.js 22)
     - region：asia-east1
 
   Database：GCP Firestore（原生模式）
@@ -590,42 +590,6 @@ backend/
 │       └── rateLimit.js    # Rate limit 邏輯（含 bypass 後門）
 ├── .env.local
 └── package.json
-```
-
-***
-
-## GitHub Actions deploy.yml
-
-```yaml
-name: Deploy to GitHub Pages
-on:
-  push:
-    branches: [main]
-
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install
-        run: npm ci
-        working-directory: frontend
-      - name: Build
-        run: npm run build
-        working-directory: frontend
-        env:
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-      - name: SPA fallback
-        run: cp dist/index.html dist/404.html
-        working-directory: frontend
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: frontend/dist
 ```
 
 ***
