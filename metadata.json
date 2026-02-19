@@ -1,5 +1,5 @@
 {
-  "requestFramePermissions": [],
-  "name": "Taiwan Animal Crossing Booker",
-  "description": "自動化 Threads 貼文回覆與管理系統"
+  "name": "Threads Reply Bot V6",
+  "description": "Automated system for managing and replying to Threads posts with custom certificates.",
+  "requestFramePermissions": []
 }

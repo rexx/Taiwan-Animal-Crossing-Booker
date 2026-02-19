@@ -1,0 +1,13 @@
+{
+  "name": "threads-reply-bot-backend",
+  "version": "6.0.0",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.2",
+    "@google-cloud/firestore": "^7.11.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
