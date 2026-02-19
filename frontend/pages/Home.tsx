@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Send, RefreshCcw } from 'lucide-react';
+import { Send, RefreshCcw, Eye } from 'lucide-react';
 import { api } from '../lib/api.ts';
 
 interface HomeProps {
@@ -11,6 +10,7 @@ interface HomeProps {
 export const Home: React.FC<HomeProps> = ({ onSent, notify }) => {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const CERTIFICATE_IMAGE = 'https://rexx.github.io/public/certificate.jpg';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ export const Home: React.FC<HomeProps> = ({ onSent, notify }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-12 py-10">
       <div className="space-y-4">
         <h1 className="text-5xl font-black tracking-tight leading-tight">自動回覆證書</h1>
         <p className="text-white/40 text-lg max-w-md mx-auto">貼上目標貼文 URL，機器人將自動前往該處留下指定的證書圖片與文字。</p>
@@ -67,6 +67,25 @@ export const Home: React.FC<HomeProps> = ({ onSent, notify }) => {
           {loading ? '發送中...' : '送出回覆指令'}
         </button>
       </form>
+
+      <div className="w-full max-w-lg space-y-4">
+        <div className="flex items-center gap-2 text-white/40 uppercase tracking-widest text-xs font-bold mb-2">
+          <Eye size={14} /> 證書預覽
+        </div>
+        <div className="bg-[#121212] border border-white/10 rounded-3xl overflow-hidden shadow-2xl transition-transform hover:scale-[1.02]">
+          <img 
+            src={CERTIFICATE_IMAGE} 
+            alt="Certificate Preview" 
+            className="w-full h-auto block"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/121212/ffffff?text=Image+Loading...';
+            }}
+          />
+          <div className="p-4 bg-black/40 backdrop-blur-sm border-t border-white/5 text-xs text-white/40 font-mono">
+            {CERTIFICATE_IMAGE}
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-3 gap-8 pt-8 opacity-40">
         <div className="flex flex-col items-center gap-2">

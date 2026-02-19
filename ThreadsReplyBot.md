@@ -35,7 +35,7 @@ Tech Stack：
 
 固定回覆圖片：
   存放：frontend/public/certificate.jpg
-  URL：https://{username}.github.io/{repo}/certificate.jpg
+  URL：https://rexx.github.io/public/certificate.jpg
   後端從環境變數 REPLY_IMAGE_URL 讀取，每次回覆自動附上，前端不傳遞
 
 固定回覆文字：
@@ -85,7 +85,7 @@ GCP_PROJECT_ID=
 FIRESTORE_COLLECTION_REPLIES=replies
 FIRESTORE_COLLECTION_RATE_LIMITS=rate_limits
 REPORT_THRESHOLD=3
-REPLY_IMAGE_URL=          # https://{username}.github.io/{repo}/certificate.jpg
+REPLY_IMAGE_URL=https://rexx.github.io/public/certificate.jpg
 REPLY_TEXT=               # 固定回覆文字內容
 ALLOWED_ORIGIN=           # GitHub Pages domain，CORS 用
 BYPASS_RATE_LIMIT_KEY=    # 開發測試用後門 key（production 留空則停用）
