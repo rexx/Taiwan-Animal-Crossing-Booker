@@ -49,9 +49,9 @@ async function processMention(payload) {
 
   if (!existing.empty) return;
 
-  // 執行回覆流程
+  let container_id = null;
   try {
-    const container_id = await threadsApi.createMediaContainer(media_id);
+    container_id = await threadsApi.createMediaContainer(media_id);
     const docRef = db.collection(process.env.FIRESTORE_COLLECTION_REPLIES).doc(container_id);
     
     await docRef.set({
@@ -61,12 +61,18 @@ async function processMention(payload) {
       reply_to_id: media_id,
       status: 'pending',
       trigger_source: 'webhook_mention',
-      created_at: new Date()
+      triggered_by_media_id: media_id,
+      report_count: 0,
+      reporter_ips: [],
+      created_at: new Date(),
+      published_at: null,
+      deleted_at: null
     });
 
     await new Promise(r => setTimeout(r, 30000));
     const post_id = await threadsApi.publishMediaContainer(container_id);
-    const threads_url = `https://www.threads.net/post/${post_id}`;
+    const username = process.env.THREADS_USERNAME || 'bot';
+    const threads_url = `https://www.threads.net/@${username}/post/${post_id}`;
     
     await docRef.update({
       post_id,
@@ -76,5 +82,11 @@ async function processMention(payload) {
     });
   } catch (err) {
     console.error('Webhook 回覆失敗:', err);
+    if (container_id) {
+      await db.collection(process.env.FIRESTORE_COLLECTION_REPLIES).doc(container_id).update({
+        status: 'deleted',
+        deleted_at: new Date()
+      }).catch(() => {});
+    }
   }
 }

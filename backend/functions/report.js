@@ -8,7 +8,8 @@ export const handlePostReport = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
   const postId = req.url.split('/').pop();
-  const ip = req.headers['x-forwarded-for'] || req.ip;
+  // 修正 IP 取得方式
+  const ip = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
 
   // 1. Rate limit 檢查
   const limit = await checkRateLimit(ip, 'report', req.headers['x-bypass-key']);
