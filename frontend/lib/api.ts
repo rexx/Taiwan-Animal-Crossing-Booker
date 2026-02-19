@@ -77,7 +77,10 @@ export const api = {
     // --- Mock Implementation ---
     await delay(800);
     const store = getMockStore();
-    const reply_to_id = url.match(/\/post\/(\d+)/)?.[1] || Math.random().toString();
+    
+    // 更新 ID 提取邏輯：支援英數 ID 並在遇到 ? 或 / 時停止
+    const idMatch = url.match(/\/post\/([\w\-_]+)/);
+    const reply_to_id = idMatch ? idMatch[1] : Math.random().toString();
     
     if (store.find(r => r.reply_to_id === reply_to_id && r.status === 'active')) {
       return { error: 'ALREADY_REPLIED', post_id: '123456789', threads_url: '#' };
@@ -89,7 +92,7 @@ export const api = {
       reply_to_id,
       reply_to_url: url,
       threads_url: `https://www.threads.net/post/${newPostId}`,
-      status: 'pending', // 模擬初始為 pending
+      status: 'pending', 
       report_count: 0,
       threshold: 3,
       created_at: new Date().toISOString(),

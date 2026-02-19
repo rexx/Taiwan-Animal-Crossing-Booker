@@ -1,10 +1,8 @@
-
 import crypto from 'crypto';
 import { db } from './lib/firestore.js';
 import { threadsApi } from './lib/threads.js';
 
 export const handleWebhookThreads = async (req, res) => {
-  // 1. GET: Meta Handshake
   if (req.method === 'GET') {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -16,7 +14,6 @@ export const handleWebhookThreads = async (req, res) => {
     return res.status(403).send('Forbidden');
   }
 
-  // 2. POST: 接收 Mention
   if (req.method === 'POST') {
     const signature = req.headers['x-hub-signature-256'];
     if (!signature) return res.status(403).send('Forbidden');
@@ -26,7 +23,7 @@ export const handleWebhookThreads = async (req, res) => {
 
     if (signature !== digest) return res.status(403).send('Forbidden');
 
-    // 異步處理以立即回傳 200 給 Meta
+    // 異步處理，不阻塞 Webhook 回傳
     processMention(req.body).catch(console.error);
     return res.status(200).json({ success: true });
   }
@@ -40,9 +37,9 @@ async function processMention(payload) {
 
   const { media_id } = changes[0].value;
   const reply_to_url = `https://threads.net/post/${media_id}`;
+  const collectionName = process.env.FIRESTORE_COLLECTION_REPLIES || 'replies';
   
-  // 檢查是否已回覆 (Idempotency)
-  const existing = await db.collection(process.env.FIRESTORE_COLLECTION_REPLIES)
+  const existing = await db.collection(collectionName)
     .where('reply_to_id', '==', media_id)
     .where('status', '==', 'active')
     .limit(1).get();
@@ -51,8 +48,10 @@ async function processMention(payload) {
 
   let container_id = null;
   try {
+    console.log('[Webhook] 接收到 Mention:', { media_id });
+    
     container_id = await threadsApi.createMediaContainer(media_id);
-    const docRef = db.collection(process.env.FIRESTORE_COLLECTION_REPLIES).doc(container_id);
+    const docRef = db.collection(collectionName).doc(container_id);
     
     await docRef.set({
       post_id: null,
@@ -72,18 +71,18 @@ async function processMention(payload) {
     await new Promise(r => setTimeout(r, 30000));
     const post_id = await threadsApi.publishMediaContainer(container_id);
     const username = process.env.THREADS_USERNAME || 'bot';
-    const threads_url = `https://www.threads.net/@${username}/post/${post_id}`;
     
     await docRef.update({
       post_id,
-      threads_url,
+      threads_url: `https://www.threads.net/@${username}/post/${post_id}`,
       status: 'active',
       published_at: new Date()
     });
+    console.log('[Webhook] 自動回覆成功');
   } catch (err) {
-    console.error('Webhook 回覆失敗:', err);
+    console.error('[Webhook] 處理失敗:', err);
     if (container_id) {
-      await db.collection(process.env.FIRESTORE_COLLECTION_REPLIES).doc(container_id).update({
+      await db.collection(collectionName).doc(container_id).update({
         status: 'deleted',
         deleted_at: new Date()
       }).catch(() => {});

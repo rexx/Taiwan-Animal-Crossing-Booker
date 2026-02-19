@@ -14,7 +14,9 @@ export const Home: React.FC<HomeProps> = ({ onSent, notify }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.match(/^https:\/\/threads\.net\/@[\w.]+\/post\/\d+$/)) {
+    // 更新正規表示式：支援 threads.net 或 threads.com，並處理 ID 後方的參數
+    const urlRegex = /^https?:\/\/(www\.)?threads\.(net|com)\/@[\w.]+\/post\/[\w\-_]+([\/\?].*)?$/;
+    if (!url.match(urlRegex)) {
       notify('請輸入有效的 Threads 貼文連結', 'error');
       return;
     }

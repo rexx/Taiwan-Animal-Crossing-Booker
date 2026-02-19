@@ -4,9 +4,10 @@ import { db } from './lib/firestore.js';
 export const handleGetReplies = async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || '20'), 100);
   const cursor = req.query.cursor;
+  const collectionName = process.env.FIRESTORE_COLLECTION_REPLIES || 'replies';
 
   try {
-    let query = db.collection(process.env.FIRESTORE_COLLECTION_REPLIES)
+    let query = db.collection(collectionName)
       .where('status', '==', 'active')
       .orderBy('created_at', 'desc')
       .limit(limit);
@@ -39,9 +40,14 @@ export const handleGetReplies = async (req, res) => {
 };
 
 export const handleGetReply = async (req, res) => {
-  const postId = req.url.split('/').pop();
+  // Strip query string and get the last part of the path
+  const urlParts = req.url.split('?')[0].split('/');
+  const postId = urlParts.pop() || urlParts.pop(); 
+  
+  const collectionName = process.env.FIRESTORE_COLLECTION_REPLIES || 'replies';
+  
   try {
-    const doc = await db.collection(process.env.FIRESTORE_COLLECTION_REPLIES).doc(postId).get();
+    const doc = await db.collection(collectionName).doc(postId).get();
     if (!doc.exists) return res.status(404).json({ error: 'NOT_FOUND' });
     
     const data = doc.data();
