@@ -37,36 +37,36 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans">
+    <div className="min-h-screen bg-cream text-ink font-sans">
       {notification && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-2xl border transition-all animate-bounce ${
-          notification.type === 'success' ? 'bg-green-500/90 border-green-400' : 'bg-red-500/90 border-red-400'
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-xl border transition-all animate-bounce ${
+          notification.type === 'success' ? 'bg-olive text-white border-olive/20' : 'bg-red-700 text-white border-red-600'
         }`}>
           {notification.msg}
         </div>
       )}
 
-      <nav className="border-b border-white/10 sticky top-0 bg-black/80 backdrop-blur-md z-50">
+      <nav className="border-b border-tan sticky top-0 bg-paper/80 backdrop-blur-md z-50">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <button onClick={() => navigate('home')} className="flex items-center gap-2">
-            <div className="bg-white p-1 rounded-md">
-              <ShieldCheck className="text-black" size={20} />
+          <button onClick={() => navigate('home')} className="flex items-center gap-2 group">
+            <div className="bg-accent p-1.5 rounded-lg shadow-sm group-hover:bg-accent-dark transition-colors">
+              <ShieldCheck className="text-white" size={20} />
             </div>
-            <span className="font-bold text-lg tracking-tight">Taiwan Animal Crossing <span className="text-white/40">Booker</span></span>
+            <span className="font-serif font-bold text-xl tracking-tight text-ink">Taiwan Animal Crossing <span className="text-accent">Booker</span></span>
           </button>
           
-          <div className="flex gap-4">
-            <button onClick={() => navigate('list')} className="text-sm font-medium text-white/60 hover:text-white flex items-center gap-1">
+          <div className="flex gap-6">
+            <button onClick={() => navigate('list')} className="text-sm font-semibold text-ink/60 hover:text-accent flex items-center gap-1.5 transition-colors">
               <History size={16} /> 歷史紀錄
             </button>
-            <button onClick={() => navigate('admin')} className="text-sm font-medium text-white/60 hover:text-white flex items-center gap-1">
+            <button onClick={() => navigate('admin')} className="text-sm font-semibold text-ink/60 hover:text-accent flex items-center gap-1.5 transition-colors">
               <ShieldCheck size={16} /> 管理員
             </button>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-12">
         {currentRoute === 'home' && <Home onSent={(id) => navigate('detail', id)} notify={notify} />}
         {currentRoute === 'list' && <RepliesList onSelect={(id) => navigate('detail', id)} />}
         {currentRoute === 'detail' && selectedPostId && (

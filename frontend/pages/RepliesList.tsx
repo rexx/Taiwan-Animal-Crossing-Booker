@@ -28,21 +28,21 @@ export const RepliesList: React.FC<RepliesListProps> = ({ onSelect }) => {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">所有回覆</h2>
-        <span className="text-xs text-white/40 uppercase tracking-widest">只顯示已發布</span>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between border-b border-tan pb-4">
+        <h2 className="text-3xl font-serif font-bold text-ink">所有回覆</h2>
+        <span className="text-xs text-ink/40 uppercase tracking-widest font-bold">只顯示已發布</span>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <Loader2 className="animate-spin text-white/20" size={40} />
-          <p className="text-white/20 text-sm font-bold uppercase tracking-widest">載入中</p>
+        <div className="flex flex-col items-center justify-center py-24 space-y-4">
+          <Loader2 className="animate-spin text-accent" size={48} />
+          <p className="text-ink/40 text-sm font-bold uppercase tracking-widest">載入中</p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {replies.length === 0 ? (
-            <div className="py-20 text-center border border-dashed border-white/10 rounded-2xl text-white/20">
+            <div className="py-24 text-center border-2 border-dashed border-tan rounded-[2rem] text-ink/20 font-medium text-lg">
               暫無回覆記錄
             </div>
           ) : (
@@ -50,16 +50,18 @@ export const RepliesList: React.FC<RepliesListProps> = ({ onSelect }) => {
               <button
                 key={r.post_id || Math.random()}
                 onClick={() => r.post_id && onSelect(r.post_id)}
-                className="bg-[#121212] border border-white/10 p-6 rounded-2xl text-left hover:border-white/20 transition-all flex items-center justify-between group"
+                className="bg-white border-2 border-tan p-8 rounded-[2rem] text-left hover:border-accent hover:shadow-xl transition-all flex items-center justify-between group shadow-sm"
               >
-                <div className="space-y-2 max-w-[80%]">
-                  <div className="flex items-center gap-3">
+                <div className="space-y-3 max-w-[85%]">
+                  <div className="flex items-center gap-4">
                     <StatusBadge status={r.status} />
-                    <span className="text-[10px] text-white/40 font-mono">{new Date(r.created_at).toLocaleString()}</span>
+                    <span className="text-xs text-ink/40 font-semibold">{new Date(r.created_at).toLocaleString()}</span>
                   </div>
-                  <p className="text-white/60 text-sm truncate">{r.reply_to_url}</p>
+                  <p className="text-ink/60 text-base truncate font-medium">{r.reply_to_url}</p>
                 </div>
-                <ChevronRight className="text-white/20 group-hover:text-white transition-colors" />
+                <div className="w-12 h-12 rounded-full border-2 border-tan flex items-center justify-center group-hover:border-accent group-hover:bg-accent transition-all">
+                  <ChevronRight className="text-tan group-hover:text-white transition-colors" />
+                </div>
               </button>
             ))
           )}

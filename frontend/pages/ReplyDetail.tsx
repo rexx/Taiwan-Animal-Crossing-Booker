@@ -74,107 +74,111 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <button onClick={onBack} className="text-white/40 hover:text-white flex items-center gap-1 text-sm group">
-        <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 返回列表
+      <button onClick={onBack} className="text-ink/40 hover:text-accent flex items-center gap-1.5 text-sm font-bold group transition-colors">
+        <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> 返回列表
       </button>
 
-      <div className="bg-[#121212] border border-white/10 rounded-3xl p-8 space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-3xl font-black">回覆詳情</h2>
-            <p className="text-white/40 text-xs font-mono">Post ID: {postId}</p>
+      <div className="bg-white border-4 border-tan rounded-[3rem] p-10 space-y-10 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-tan pb-6">
+          <div className="space-y-2">
+            <h2 className="text-4xl font-serif font-bold text-ink">回覆詳情</h2>
+            <p className="text-ink/40 text-xs font-mono font-bold tracking-wider">Post ID: {postId}</p>
           </div>
           <StatusBadge status={reply.status} big />
         </div>
 
         {reply.status === 'pending' && (
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-6 flex gap-4">
-            <Info className="text-blue-400 shrink-0" size={24} />
-            <div className="space-y-1">
-              <p className="font-bold text-blue-100">發布處理中...</p>
-              <p className="text-sm text-blue-200/60 leading-relaxed">Meta 伺服器正在處理媒體容器。為了確保圖片上傳品質，我們會等待約 30 秒。請稍後重新整理本頁面。</p>
+          <div className="bg-paper border-2 border-tan rounded-3xl p-8 flex gap-6 shadow-inner">
+            <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center shrink-0">
+              <Info className="text-accent" size={28} />
+            </div>
+            <div className="space-y-2">
+              <p className="font-serif font-bold text-xl text-ink">發布處理中...</p>
+              <p className="text-base text-ink/60 leading-relaxed font-medium">Meta 伺服器正在處理媒體容器。為了確保圖片上傳品質，我們會等待約 30 秒。請稍後重新整理本頁面。</p>
             </div>
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-bold tracking-widest text-white/30">目標貼文連結</label>
-              <div className="bg-black/40 p-4 rounded-xl border border-white/5 flex items-center justify-between">
-                <span className="text-sm text-white/60 truncate mr-4">{reply.reply_to_url}</span>
-                <a href={reply.reply_to_url} target="_blank" className="shrink-0 text-white/40 hover:text-white"><ExternalLink size={18} /></a>
+        <div className="grid md:grid-cols-2 gap-12">
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">目標貼文連結</label>
+              <div className="bg-paper p-5 rounded-2xl border-2 border-tan flex items-center justify-between shadow-sm">
+                <span className="text-sm text-ink/60 truncate mr-4 font-medium">{reply.reply_to_url}</span>
+                <a href={reply.reply_to_url} target="_blank" className="shrink-0 w-10 h-10 bg-white border border-tan rounded-full flex items-center justify-center text-ink/40 hover:text-accent hover:border-accent transition-all"><ExternalLink size={18} /></a>
               </div>
             </div>
 
             {reply.threads_url && reply.status === 'active' && (
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold tracking-widest text-white/30">機器人回覆連結</label>
-                <a href={reply.threads_url} target="_blank" className="block w-full bg-white text-black text-center font-bold py-4 rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2">
-                  前往 Threads 查看 <ExternalLink size={18} />
+              <div className="space-y-3">
+                <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">機器人回覆連結</label>
+                <a href={reply.threads_url} target="_blank" className="block w-full bg-accent text-white text-center font-bold py-5 rounded-2xl hover:bg-accent-dark hover:shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-3 text-lg shadow-md">
+                  前往 Threads 查看 <ExternalLink size={20} />
                 </a>
               </div>
             )}
 
-            <div className="pt-4 space-y-4">
-               <div className="space-y-1">
-                <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">檢舉進度</span>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+            <div className="pt-6 space-y-6">
+               <div className="space-y-3">
+                <span className="text-xs text-ink/30 uppercase tracking-[0.2em] font-bold">檢舉進度</span>
+                <div className="flex items-center gap-4">
+                  <div className="h-3 w-full bg-tan/30 rounded-full overflow-hidden border border-tan/20">
                     <div 
-                      className={`h-full transition-all duration-1000 ${reply.report_count > 0 ? 'bg-red-500' : 'bg-white/10'}`} 
+                      className={`h-full transition-all duration-1000 ${reply.report_count > 0 ? 'bg-accent' : 'bg-tan/20'}`} 
                       style={{width: `${(reply.report_count/reply.threshold)*100}%`}}
                     />
                   </div>
-                  <span className="font-mono text-sm text-white/60 whitespace-nowrap">{reply.report_count} / {reply.threshold}</span>
+                  <span className="font-serif font-bold text-lg text-ink/60 whitespace-nowrap">{reply.report_count} / {reply.threshold}</span>
                 </div>
               </div>
 
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">觸發來源</span>
-                <span className="text-sm text-white/60">
+              <div className="flex justify-between items-center py-4 border-b border-tan/40">
+                <span className="text-xs text-ink/30 uppercase tracking-[0.2em] font-bold">觸發來源</span>
+                <span className="text-base text-ink/60 font-bold">
                   {reply.trigger_source === 'manual' ? '網頁手動輸入' : 'Threads Mention'}
                 </span>
               </div>
               
-              <div className="flex justify-between items-center py-2 border-b border-white/5">
-                <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">建立時間</span>
-                <span className="text-sm text-white/60 font-mono">
+              <div className="flex justify-between items-center py-4 border-b border-tan/40">
+                <span className="text-xs text-ink/30 uppercase tracking-[0.2em] font-bold">建立時間</span>
+                <span className="text-base text-ink/60 font-bold">
                   {new Date(reply.created_at).toLocaleString()}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] uppercase font-bold tracking-widest text-white/30 flex items-center gap-1">
-              <ImageIcon size={12} /> 已發送證書
+          <div className="space-y-4">
+            <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30 flex items-center gap-2">
+              <ImageIcon size={16} /> 已發送證書
             </label>
-            <div className="bg-black/40 border border-white/5 rounded-2xl overflow-hidden aspect-square flex items-center justify-center">
-              <img 
-                src={CERTIFICATE_IMAGE} 
-                alt="Sent Certificate" 
-                className="w-full h-full object-contain"
-              />
+            <div className="bg-paper border-4 border-tan rounded-[2rem] overflow-hidden aspect-square flex items-center justify-center p-4 shadow-inner">
+              <div className="certificate-border w-full h-full rounded-xl overflow-hidden flex items-center justify-center bg-white">
+                <img 
+                  src={CERTIFICATE_IMAGE} 
+                  alt="Sent Certificate" 
+                  className="max-w-full max-h-full object-contain rounded-lg"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="pt-6 border-t border-white/5 flex flex-wrap gap-4 items-center justify-end">
+        <div className="pt-8 border-t border-tan/40 flex flex-wrap gap-4 items-center justify-end">
           <button 
             onClick={handleReport}
             disabled={reporting || reply.status !== 'active'}
-            className="px-6 py-3 border border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-xl transition-all text-sm font-bold flex items-center gap-2 disabled:opacity-20"
+            className="px-8 py-4 border-2 border-accent/20 text-accent hover:bg-accent/5 rounded-2xl transition-all text-base font-bold flex items-center gap-2 disabled:opacity-20"
           >
-            <AlertTriangle size={16} /> 檢舉回覆
+            <AlertTriangle size={20} /> 檢舉回覆
           </button>
           
           {adminKey && reply.status !== 'deleted' && (
             <button 
               onClick={handleDelete}
-              className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 text-sm font-bold rounded-xl transition-all hover:text-white flex items-center gap-2"
+              className="px-8 py-4 bg-red-50 text-white hover:bg-red-700 text-base font-bold rounded-2xl transition-all shadow-md flex items-center gap-2"
             >
-              <Trash2 size={16} /> 管理員撤回
+              <Trash2 size={20} /> 管理員撤回
             </button>
           )}
         </div>
