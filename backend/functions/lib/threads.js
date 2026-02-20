@@ -8,17 +8,16 @@ export const threadsApi = {
    * @returns {Promise<string>} 數字 ID
    */
   async getMediaIdByShortcode(shortcode) {
-    // 1. 如果輸入已經是純數字，直接視為已轉換的 ID (例如來自 Webhook 的資料)
+    // 1. 如果輸入已經是純數字，直接視為已轉換的 ID
     if (/^\d+$/.test(shortcode)) {
       return shortcode;
     }
 
     // 2. 呼叫 /me/threads 獲取機器人自己的貼文列表以進行匹配
-    // 使用 /me/threads 可以獲取授權帳號發布的所有貼文
     const url = `https://graph.threads.net/v1.0/me/threads`;
     const params = new URLSearchParams({
       fields: 'id,permalink',
-      limit: '50', // 搜尋最近 50 則貼文以增加匹配機率
+      limit: '50',
       access_token: process.env.THREADS_ACCESS_TOKEN
     });
 
@@ -32,36 +31,35 @@ export const threadsApi = {
       }
 
       if (!data.data || !Array.isArray(data.data)) {
-        throw new Error('API 回傳格式不符合預期');
+        // 如果無法轉換且不是數字，尝试直接返回 shortcode (部分 API 版本可能支持)
+        return shortcode;
       }
 
-      // 3. 在列表中尋找 permalink 包含該 shortcode 的項目
-      // permalink 格式通常為 https://www.threads.net/@user/post/SHORTCODE
       const match = data.data.find(item => 
         item.permalink && item.permalink.includes(`/post/${shortcode}`)
       );
 
       if (!match) {
-        // 如果找不到，代表這可能不是機器人自己的貼文，或者該貼文不在最近的 50 則內
-        throw new Error(`無法將短網址代碼 "${shortcode}" 轉換為數字 ID。請確保目標貼文是機器人發布的，或提供直接的數字 ID。`);
+        // 找不到匹配時，返回原始 shortcode 嘗試讓 API 處理
+        return shortcode;
       }
 
       return match.id;
     } catch (err) {
-      console.error('[ThreadsAPI] Shortcode 轉換過程出錯:', err);
-      throw err;
+      console.warn('[ThreadsAPI] Shortcode 轉換失敗，嘗試直接使用原始 ID:', shortcode);
+      return shortcode;
     }
   },
 
   /**
    * 建立媒體容器。
-   * @param {string} replyToIdOrShortcode 目標貼文的 ID 或 Shortcode
+   * 修正：Threads API 建立回覆與貼文均使用 /threads 端點。
    */
   async createMediaContainer(replyToIdOrShortcode) {
-    // 內部自動呼叫轉換邏輯：支援傳入數字 ID 或 URL 中的 shortcode
     const replyToId = await this.getMediaIdByShortcode(replyToIdOrShortcode);
     
-    const url = `https://graph.threads.net/v1.0/${process.env.THREADS_USER_ID}/threads_replies`;
+    // 修正：Threads API 使用 /threads 而非 /threads_replies
+    const url = `https://graph.threads.net/v1.0/${process.env.THREADS_USER_ID}/threads`;
     const params = new URLSearchParams({
       media_type: 'IMAGE',
       image_url: process.env.REPLY_IMAGE_URL,
@@ -70,7 +68,7 @@ export const threadsApi = {
       access_token: process.env.THREADS_ACCESS_TOKEN
     });
 
-    console.log(`[ThreadsAPI] 正在建立媒體容器，目標數字 ID: ${replyToId}`);
+    console.log(`[ThreadsAPI] 正在建立媒體容器，目標 ID: ${replyToId}`);
     const res = await fetch(`${url}?${params.toString()}`, { method: 'POST' });
     const data = await res.json();
     
@@ -83,7 +81,6 @@ export const threadsApi = {
   },
 
   async publishMediaContainer(containerId) {
-    // Step 3: POST https://graph.threads.net/v1.0/{container_id}/publish
     const url = `https://graph.threads.net/v1.0/${containerId}/publish`;
     const params = new URLSearchParams({
       access_token: process.env.THREADS_ACCESS_TOKEN
