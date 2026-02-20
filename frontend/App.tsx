@@ -52,7 +52,7 @@ export const App: React.FC = () => {
             <div className="bg-white p-1 rounded-md">
               <ShieldCheck className="text-black" size={20} />
             </div>
-            <span className="font-bold text-lg tracking-tight">Threads Bot <span className="text-white/40">V6</span></span>
+            <span className="font-bold text-lg tracking-tight">Taiwan Animal Crossing <span className="text-white/40">Booker</span></span>
           </button>
           
           <div className="flex gap-4">
@@ -79,7 +79,7 @@ export const App: React.FC = () => {
         )}
         {currentRoute === 'admin' && (
           adminKey ? (
-            <AdminPage adminKey={adminKey} onLogout={handleLogout} onSelect={(id) => navigate('detail', id)} notify={notify} />
+            <AdminPage adminKey={adminKey} onLogout={handleLogout} onSelect={(id: string) => navigate('detail', id)} notify={notify} />
           ) : (
             <AdminLogin onLogin={handleAdminLogin} />
           )
