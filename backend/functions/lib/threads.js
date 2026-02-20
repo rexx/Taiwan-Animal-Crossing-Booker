@@ -2,7 +2,7 @@
 export const threadsApi = {
   /**
    * 將 Threads 的 shortcode (例如 URL 中的 ID) 轉換為 API 所需的數字 ID。
-   * 受限於 Threads API，目前僅能透過搜尋機器人自身貼文列表來匹配轉換。
+   * 受限於 Threads API，目前僅能透過搜尋 Booker 自身貼文列表來匹配轉換。
    * 
    * @param {string} shortcode 貼文的短網址代碼 (e.g. DU7J9o1EThx)
    * @returns {Promise<string>} 數字 ID
@@ -13,7 +13,7 @@ export const threadsApi = {
       return shortcode;
     }
 
-    // 2. 呼叫 /me/threads 獲取機器人自己的貼文列表以進行匹配
+    // 2. 呼叫 /me/threads 獲取 Booker 自己的貼文列表以進行匹配
     // 使用 /me/threads 可以獲取授權帳號發布的所有貼文
     const url = `https://graph.threads.net/v1.0/me/threads`;
     const params = new URLSearchParams({
@@ -42,8 +42,8 @@ export const threadsApi = {
       );
 
       if (!match) {
-        // 如果找不到，代表這可能不是機器人自己的貼文，或者該貼文不在最近的 50 則內
-        throw new Error(`無法將短網址代碼 "${shortcode}" 轉換為數字 ID。請確保目標貼文是機器人發布的，或提供直接的數字 ID。`);
+        // 如果找不到，代表這可能不是 Booker 自己的貼文，或者該貼文不在最近的 50 則內
+        throw new Error(`無法將短網址代碼 "${shortcode}" 轉換為數字 ID。請確保目標貼文是 Booker 發布的，或提供直接的數字 ID。`);
       }
 
       return match.id;

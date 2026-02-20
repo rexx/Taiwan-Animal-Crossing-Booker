@@ -111,7 +111,7 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
 
             {reply.threads_url && reply.status === 'active' && (
               <div className="space-y-3">
-                <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">機器人回覆連結</label>
+                <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">Booker 回覆連結</label>
                 <a href={reply.threads_url} target="_blank" className="block w-full bg-accent text-white text-center font-bold py-5 rounded-2xl hover:bg-accent-dark hover:shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-3 text-lg shadow-md">
                   前往 Threads 查看 <ExternalLink size={20} />
                 </a>
