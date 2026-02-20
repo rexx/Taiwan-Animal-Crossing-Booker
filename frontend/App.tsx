@@ -52,7 +52,7 @@ export const App: React.FC = () => {
             <div className="bg-accent p-1.5 rounded-lg shadow-sm group-hover:bg-accent-dark transition-colors">
               <ShieldCheck className="text-white" size={20} />
             </div>
-            <span className="font-serif font-bold text-2xl tracking-tight text-ink">動森島脆友證書</span>
+            <span className="font-serif font-bold text-2xl tracking-tight text-ink">台灣動森島脆友證書</span>
           </button>
           
           <div className="flex gap-6">

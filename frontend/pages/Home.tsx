@@ -56,7 +56,7 @@ export const Home: React.FC<HomeProps> = ({ onSent, notify }) => {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://threads.net/@user/post/..."
-            className="w-full bg-white border-2 border-tan rounded-3xl px-8 py-6 text-xl focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all placeholder:text-ink/20 shadow-sm"
+            className="w-full bg-white border-2 border-tan rounded-3xl px-8 py-6 text-base focus:outline-none focus:ring-4 focus:ring-accent/10 focus:border-accent transition-all placeholder:text-ink/20 shadow-sm"
           />
         </div>
         <button
