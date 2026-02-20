@@ -81,7 +81,7 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
       <div className="bg-white border-4 border-tan rounded-[3rem] p-10 space-y-10 shadow-2xl">
         <div className="flex items-center justify-between border-b border-tan pb-6">
           <div className="space-y-2">
-            <h2 className="text-4xl font-serif font-bold text-ink">回覆詳情</h2>
+            <h2 className="text-4xl font-serif font-bold text-ink">任務詳情</h2>
             <p className="text-ink/40 text-xs font-mono font-bold tracking-wider">Post ID: {postId}</p>
           </div>
           <StatusBadge status={reply.status} big />
@@ -93,8 +93,8 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
               <Info className="text-accent" size={28} />
             </div>
             <div className="space-y-2">
-              <p className="font-serif font-bold text-xl text-ink">發布處理中...</p>
-              <p className="text-base text-ink/60 leading-relaxed font-medium">Meta 伺服器正在處理媒體容器。為了確保圖片上傳品質，我們會等待約 30 秒。請稍後重新整理本頁面。</p>
+              <p className="font-serif font-bold text-xl text-ink">處理中</p>
+              <p className="text-base text-ink/60 leading-relaxed font-medium">正在處理證書...請稍後再回來看。</p>
             </div>
           </div>
         )}
@@ -103,48 +103,57 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
           <div className="space-y-8">
             <div className="space-y-3">
               <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">目標貼文連結</label>
-              <div className="bg-paper p-5 rounded-2xl border-2 border-tan flex items-center justify-between shadow-sm">
-                <span className="text-sm text-ink/60 truncate mr-4 font-medium">{reply.reply_to_url}</span>
-                <a href={reply.reply_to_url} target="_blank" className="shrink-0 w-10 h-10 bg-white border border-tan rounded-full flex items-center justify-center text-ink/40 hover:text-accent hover:border-accent transition-all"><ExternalLink size={18} /></a>
-              </div>
+              <a 
+                href={reply.reply_to_url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center justify-between bg-paper p-5 rounded-2xl border-2 border-tan hover:border-accent hover:bg-accent/5 transition-all group shadow-sm"
+              >
+                <span className="text-sm text-ink/60 truncate mr-4 font-medium group-hover:text-accent transition-colors">{reply.reply_to_url}</span>
+                <ExternalLink size={18} className="text-ink/20 group-hover:text-accent transition-colors shrink-0" />
+              </a>
             </div>
 
             {reply.threads_url && reply.status === 'active' && (
               <div className="space-y-3">
-                <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">Booker 回覆連結</label>
-                <a href={reply.threads_url} target="_blank" className="block w-full bg-accent text-white text-center font-bold py-5 rounded-2xl hover:bg-accent-dark hover:shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-3 text-lg shadow-md">
-                  前往 Threads 查看 <ExternalLink size={20} />
+                <label className="text-xs uppercase font-bold tracking-[0.2em] text-ink/30">證書貼文連結</label>
+                <a 
+                  href={reply.threads_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between bg-paper p-5 rounded-2xl border-2 border-tan hover:border-accent hover:bg-accent/5 transition-all group shadow-sm"
+                >
+                  <span className="text-sm text-ink/60 truncate mr-4 font-medium group-hover:text-accent transition-colors">{reply.threads_url}</span>
+                  <ExternalLink size={18} className="text-ink/20 group-hover:text-accent transition-colors shrink-0" />
                 </a>
               </div>
             )}
 
-            <div className="pt-6 space-y-6">
-               <div className="space-y-3">
-                <span className="text-xs text-ink/30 uppercase tracking-[0.2em] font-bold">檢舉進度</span>
-                <div className="flex items-center gap-4">
-                  <div className="h-3 w-full bg-tan/30 rounded-full overflow-hidden border border-tan/20">
-                    <div 
-                      className={`h-full transition-all duration-1000 ${reply.report_count > 0 ? 'bg-accent' : 'bg-tan/20'}`} 
-                      style={{width: `${(reply.report_count/reply.threshold)*100}%`}}
-                    />
-                  </div>
-                  <span className="font-serif font-bold text-lg text-ink/60 whitespace-nowrap">{reply.report_count} / {reply.threshold}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center py-4 border-b border-tan/40">
-                <span className="text-xs text-ink/30 uppercase tracking-[0.2em] font-bold">觸發來源</span>
-                <span className="text-base text-ink/60 font-bold">
-                  {reply.trigger_source === 'manual' ? '網頁手動輸入' : 'Threads Mention'}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center py-4 border-b border-tan/40">
+            <div className="pt-6 space-y-4">
+              <div className="flex justify-between items-center py-3 border-b border-tan/40">
                 <span className="text-xs text-ink/30 uppercase tracking-[0.2em] font-bold">建立時間</span>
                 <span className="text-base text-ink/60 font-bold">
                   {new Date(reply.created_at).toLocaleString()}
                 </span>
               </div>
+
+              {adminKey && (
+                <>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-[10px] text-ink/30 uppercase tracking-[0.2em] font-bold">來源</span>
+                    <span className="text-xs text-ink/40 font-medium">
+                      {reply.trigger_source === 'manual' ? '網頁手動輸入' : 'Threads Mention'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-[10px] text-ink/30 uppercase tracking-[0.2em] font-bold">檢舉次數</span>
+                    <span className="text-xs text-ink/40 font-medium">
+                      {reply.report_count} / {reply.threshold}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
