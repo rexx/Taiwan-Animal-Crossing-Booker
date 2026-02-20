@@ -36,7 +36,7 @@ async function processMention(payload) {
   if (!changes || changes[0].field !== 'mentions') return;
 
   const { media_id } = changes[0].value;
-  const reply_to_url = `https://threads.net/post/${media_id}`;
+  const reply_to_url = `https://threads.com/post/${media_id}`;
   const collectionName = process.env.FIRESTORE_COLLECTION_REPLIES || 'replies';
   
   const existing = await db.collection(collectionName)
@@ -74,7 +74,7 @@ async function processMention(payload) {
     
     await docRef.update({
       post_id,
-      threads_url: `https://www.threads.net/@${username}/post/${post_id}`,
+      threads_url: `https://threads.com/@${username}/post/${post_id}`,
       status: 'active',
       published_at: new Date()
     });

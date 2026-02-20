@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { Reply, api } from '../lib/api.ts';
+import { Reply, api, cleanThreadsUrl } from '../lib/api.ts';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 
 interface RepliesListProps {
@@ -52,12 +52,12 @@ export const RepliesList: React.FC<RepliesListProps> = ({ onSelect }) => {
                 onClick={() => r.post_id && onSelect(r.post_id)}
                 className="bg-white border-2 border-tan p-8 rounded-[2rem] text-left hover:border-accent hover:shadow-xl transition-all flex items-center justify-between group shadow-sm"
               >
-                <div className="space-y-3 max-w-[85%]">
+                <div className="space-y-3 max-w-[85%] min-w-0">
                   <div className="flex items-center gap-4">
                     <StatusBadge status={r.status} />
                     <span className="text-xs text-ink/40 font-semibold">{new Date(r.created_at).toLocaleString()}</span>
                   </div>
-                  <p className="text-ink/60 text-base truncate font-medium">{r.reply_to_url}</p>
+                  <p className="text-ink/60 text-base truncate font-medium">{cleanThreadsUrl(r.reply_to_url)}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full border-2 border-tan flex items-center justify-center group-hover:border-accent group-hover:bg-accent transition-all">
                   <ChevronRight className="text-tan group-hover:text-white transition-colors" />

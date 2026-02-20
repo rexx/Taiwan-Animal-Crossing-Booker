@@ -33,8 +33,8 @@ const getMockStore = (): Reply[] => {
     {
       post_id: '123456789',
       reply_to_id: '1',
-      reply_to_url: 'https://threads.net/@zuck/post/1',
-      threads_url: 'https://threads.net/@bot/post/reply_1',
+      reply_to_url: 'https://threads.com/@zuck/post/1',
+      threads_url: 'https://threads.com/@bot/post/reply_1',
       status: 'active',
       report_count: 0,
       threshold: 3,
@@ -44,8 +44,8 @@ const getMockStore = (): Reply[] => {
     {
       post_id: '987654321',
       reply_to_id: '2',
-      reply_to_url: 'https://threads.net/@mosseri/post/2',
-      threads_url: 'https://threads.net/@bot/post/reply_2',
+      reply_to_url: 'https://threads.com/@mosseri/post/2',
+      threads_url: 'https://threads.com/@bot/post/reply_2',
       status: 'active',
       report_count: 2,
       threshold: 3,
@@ -62,6 +62,16 @@ const saveMockStore = (replies: Reply[]) => {
 };
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+export const cleanThreadsUrl = (url: string): string => {
+  try {
+    const u = new URL(url);
+    const hostname = u.hostname.replace(/^www\./, '');
+    return `https://${hostname}${u.pathname}`.replace(/\/$/, '');
+  } catch (e) {
+    return url;
+  }
+};
 
 export const api = {
   async postReply(url: string) {
@@ -91,7 +101,7 @@ export const api = {
       post_id: newPostId,
       reply_to_id,
       reply_to_url: url,
-      threads_url: `https://www.threads.net/post/${newPostId}`,
+      threads_url: `https://threads.com/post/${newPostId}`,
       status: 'pending', 
       report_count: 0,
       threshold: 3,

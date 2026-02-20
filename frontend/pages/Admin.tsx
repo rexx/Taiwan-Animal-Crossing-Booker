@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { LogOut, Search, Filter, Loader2, RefreshCw } from 'lucide-react';
-import { Reply, api } from '../lib/api.ts';
+import { Reply, api, cleanThreadsUrl } from '../lib/api.ts';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 
 interface AdminPageProps {
@@ -101,7 +101,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ adminKey, onLogout, onSele
                           {r.trigger_source === 'manual' ? 'WEB' : 'TAG'}
                         </span>
                       </td>
-                      <td className="px-8 py-6 max-w-[240px] truncate text-ink/60 font-bold">{r.reply_to_url}</td>
+                      <td className="px-8 py-6 max-w-[240px] truncate text-ink/60 font-bold">{cleanThreadsUrl(r.reply_to_url)}</td>
                       <td className="px-8 py-6 text-center">
                         <span className={`font-serif font-bold text-lg ${r.report_count >= r.threshold ? 'text-red-500' : 'text-ink/40'}`}>
                           {r.report_count}

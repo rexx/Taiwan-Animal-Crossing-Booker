@@ -348,7 +348,7 @@ X-Hub-Signature-256: sha256={HMAC-SHA256(payload, WEBHOOK_APP_SECRET)}
 ```
 1. 驗證 HMAC 簽章
 2. 解析 payload → 取出 media_id
-3. 組出 reply_to_url: https://threads.net/post/{media_id}
+3. 組出 reply_to_url: https://threads.com/post/{media_id}
 4. Idempotency 檢查（同 POST /reply）
 5. 執行回覆流程，trigger_source: "webhook_mention"
 6. 立即回傳 200（Meta 要求，否則會重試）

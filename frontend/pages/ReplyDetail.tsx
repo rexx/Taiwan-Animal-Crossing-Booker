@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ExternalLink, Info, AlertTriangle, Trash2, Loader2, Image as ImageIcon } from 'lucide-react';
-import { Reply, api } from '../lib/api.ts';
+import { Reply, api, cleanThreadsUrl } from '../lib/api.ts';
 import { StatusBadge } from '../components/StatusBadge.tsx';
 
 interface ReplyDetailProps {
@@ -109,7 +109,7 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
                 rel="noopener noreferrer"
                 className="flex items-center justify-between bg-paper p-5 rounded-2xl border-2 border-tan hover:border-accent hover:bg-accent/5 transition-all group shadow-sm"
               >
-                <span className="text-sm text-ink/60 truncate mr-4 font-medium group-hover:text-accent transition-colors">{reply.reply_to_url}</span>
+                <span className="text-sm text-ink/60 truncate mr-4 font-medium group-hover:text-accent transition-colors min-w-0">{cleanThreadsUrl(reply.reply_to_url)}</span>
                 <ExternalLink size={18} className="text-ink/20 group-hover:text-accent transition-colors shrink-0" />
               </a>
             </div>
@@ -123,7 +123,7 @@ export const ReplyDetail: React.FC<ReplyDetailProps> = ({ postId, adminKey, noti
                   rel="noopener noreferrer"
                   className="flex items-center justify-between bg-paper p-5 rounded-2xl border-2 border-tan hover:border-accent hover:bg-accent/5 transition-all group shadow-sm"
                 >
-                  <span className="text-sm text-ink/60 truncate mr-4 font-medium group-hover:text-accent transition-colors">{reply.threads_url}</span>
+                  <span className="text-sm text-ink/60 truncate mr-4 font-medium group-hover:text-accent transition-colors min-w-0">{cleanThreadsUrl(reply.threads_url || '')}</span>
                   <ExternalLink size={18} className="text-ink/20 group-hover:text-accent transition-colors shrink-0" />
                 </a>
               </div>

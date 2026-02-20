@@ -36,7 +36,7 @@ export const threadsApi = {
       }
 
       // 3. 在列表中尋找 permalink 包含該 shortcode 的項目
-      // permalink 格式通常為 https://www.threads.net/@user/post/SHORTCODE
+      // permalink 格式通常為 https://threads.com/@user/post/SHORTCODE
       const match = data.data.find(item => 
         item.permalink && item.permalink.includes(`/post/${shortcode}`)
       );

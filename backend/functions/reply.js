@@ -19,7 +19,7 @@ export const handlePostReply = async (req, res) => {
   if (!match) {
     return res.status(400).json({ 
       error: 'INVALID_URL', 
-      message: '請輸入有效的 Threads 貼文連結 (例如: https://www.threads.net/@user/post/ID)' 
+      message: '請輸入有效的 Threads 貼文連結 (例如: https://threads.com/@user/post/ID)' 
     });
   }
   
@@ -73,7 +73,7 @@ export const handlePostReply = async (req, res) => {
     // Step 3: 正式發布
     const post_id = await threadsApi.publishMediaContainer(container_id);
     const username = process.env.THREADS_USERNAME || 'bot';
-    const threads_url = `https://www.threads.net/@${username}/post/${post_id}`;
+    const threads_url = `https://threads.com/@${username}/post/${post_id}`;
     
     // 更新為 active 狀態
     await docRef.update({ 
