@@ -4,7 +4,7 @@
  */
 
 export type ReplyStatus = "pending" | "active" | "deleted";
-export type TriggerSource = "manual" | "webhook_mention";
+export type TriggerSource = "webhook_mention";
 
 export interface Reply {
   post_id: string | null;
@@ -28,7 +28,7 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '';
 const getMockStore = (): Reply[] => {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) return JSON.parse(stored);
-  
+
   const initial: Reply[] = [
     {
       post_id: '123456789',
@@ -39,7 +39,7 @@ const getMockStore = (): Reply[] => {
       report_count: 0,
       threshold: 3,
       created_at: new Date(Date.now() - 3600000).toISOString(),
-      trigger_source: 'manual'
+      trigger_source: 'webhook_mention'
     },
     {
       post_id: '987654321',
@@ -74,57 +74,6 @@ export const cleanThreadsUrl = (url: string): string => {
 };
 
 export const api = {
-  async postReply(url: string) {
-    if (API_BASE_URL) {
-      const res = await fetch(`${API_BASE_URL}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reply_to_url: url })
-      });
-      return res.json();
-    }
-
-    // --- Mock Implementation ---
-    await delay(800);
-    const store = getMockStore();
-    
-    // 更新 ID 提取邏輯：支援英數 ID 並在遇到 ? 或 / 時停止
-    const idMatch = url.match(/\/post\/([\w\-_]+)/);
-    const reply_to_id = idMatch ? idMatch[1] : Math.random().toString();
-    
-    if (store.find(r => r.reply_to_id === reply_to_id && r.status === 'active')) {
-      return { error: 'ALREADY_REPLIED', post_id: '123456789', threads_url: '#' };
-    }
-
-    const newPostId = Math.floor(Math.random() * 1000000000).toString();
-    const newReply: Reply = {
-      post_id: newPostId,
-      reply_to_id,
-      reply_to_url: url,
-      threads_url: `https://threads.com/post/${newPostId}`,
-      status: 'pending', 
-      report_count: 0,
-      threshold: 3,
-      created_at: new Date().toISOString(),
-      trigger_source: 'manual'
-    };
-
-    saveMockStore([newReply, ...store]);
-    
-    // 模擬後端 5 秒後自動轉為 active
-    setTimeout(() => {
-      const currentStore = getMockStore();
-      const idx = currentStore.findIndex(r => r.post_id === newPostId);
-      if (idx !== -1) {
-        currentStore[idx].status = 'active';
-        currentStore[idx].published_at = new Date().toISOString();
-        saveMockStore(currentStore);
-      }
-    }, 5000);
-
-    return { success: true, post_id: newPostId, status: 'active' };
-  },
-
   async getReplies(limit = 20, cursor?: string) {
     if (API_BASE_URL) {
       const url = new URL(`${API_BASE_URL}/getReplies`);
