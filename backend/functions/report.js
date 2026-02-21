@@ -6,7 +6,7 @@ import { FieldValue } from '@google-cloud/firestore';
 
 export const handlePostReport = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-  
+
   const postId = req.url.split('/').pop();
   // 修正 IP 取得方式
   const ip = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
@@ -54,11 +54,11 @@ export const handlePostReport = async (req, res) => {
       }
     }
 
-    res.json({ 
-      success: true, 
-      report_count: currentCount, 
-      threshold, 
-      auto_deleted 
+    res.json({
+      success: true,
+      report_count: currentCount,
+      threshold,
+      auto_deleted
     });
   } catch (err) {
     res.status(500).json({ error: 'INTERNAL_ERROR', message: err.message });

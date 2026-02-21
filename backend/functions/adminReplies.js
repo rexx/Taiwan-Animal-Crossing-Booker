@@ -3,6 +3,7 @@ import { db } from './lib/firestore.js';
 
 export const handleAdminGetReplies = async (req, res) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_API_KEY}`) {
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }

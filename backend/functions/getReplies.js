@@ -28,8 +28,8 @@ export const handleGetReplies = async (req, res) => {
     let next_cursor = null;
     if (replies.length === limit) {
       const last = replies[replies.length - 1];
-      next_cursor = Buffer.from(JSON.stringify({ 
-        last_created_at: last.created_at 
+      next_cursor = Buffer.from(JSON.stringify({
+        last_created_at: last.created_at
       })).toString('base64');
     }
 
@@ -42,14 +42,14 @@ export const handleGetReplies = async (req, res) => {
 export const handleGetReply = async (req, res) => {
   // Strip query string and get the last part of the path
   const urlParts = req.url.split('?')[0].split('/');
-  const postId = urlParts.pop() || urlParts.pop(); 
-  
+  const postId = urlParts.pop() || urlParts.pop();
+
   const collectionName = process.env.FIRESTORE_COLLECTION_REPLIES || 'replies';
-  
+
   try {
     const doc = await db.collection(collectionName).doc(postId).get();
     if (!doc.exists) return res.status(404).json({ error: 'NOT_FOUND' });
-    
+
     const data = doc.data();
     res.json({
       ...data,
