@@ -1,640 +1,464 @@
-# Threads Reply Bot — Spec v6
+# Threads Reply Bot — Spec v8
 
 ## Context for AI（給 AI 開發的背景說明）
 
-```
-這是一個讓任何人輸入 Meta Threads 貼文 URL 的網站。
-後端用「預先授權好的單一 Threads 帳號」（bot 帳號）發出回覆。
-每則回覆都會附上同一張固定圖片（存於 GitHub Pages 靜態資源）。
-回覆內容（文字）固定由後端決定，前端使用者只需輸入目標 URL。
+- 這是一個讓 Meta Threads 使用者透過「@tag bot 帳號」觸發自動回覆的系統。
+- 後端用「預先授權好的單一 Threads 帳號」（bot 帳號）發出回覆。
+- 每則回覆都會附上同一張固定圖片（存於 GitHub Pages 靜態資源）。
+- 回覆內容（文字）固定由後端決定。
 
-支援雙向觸發：
-  1. 主動：使用者在網站貼上目標 Threads 貼文 URL，手動觸發回覆
-  2. 被動：路人在 Threads 上 tag bot 帳號，自動觸發回覆
+- ⚠️ 主要觸發路徑：使用者在貼文中 @tag bot 帳號 → Webhook 通知 → bot 自動回覆到 mention 的 parent
+- ❌ 已廢棄路徑：使用者輸入 URL → 後端查 media id → 發回覆（技術上行不通，見下方說明）
 
-所有回覆來源永遠是同一個 Threads bot 帳號。
-系統需要防止濫用（rate limit + 檢舉自動刪除）。
-任何人都可以發文、查看列表、查看單篇。
-管理操作（刪除、查看完整資訊）需要 ADMIN_API_KEY。
-
-Tech Stack：
-  Frontend：React + Vite (TypeScript)
+- Tech Stack：
+  - Frontend：React + Vite (TypeScript)
     - 路由：React Router v7
     - HTTP client：fetch（原生）
     - 部署：GitHub Pages（靜態）
     - CI/CD：GitHub Actions
 
-  Backend：GCP Cloud Functions 2nd gen (Node.js 22)
+  - Backend：GCP Cloud Functions 2nd gen (Node.js 22)
     - region：asia-east1
+    - 已部署並驗證可運作的 Cloud Run service name：postreply
 
-  Database：GCP Firestore（原生模式）
-  Secrets：GCP Secret Manager
-  CDN/防禦：
-    - 前端：GitHub Pages 內建 CDN
-    - 後端：Cloud Functions URL 直接使用（無自訂 domain）
+  - Database：GCP Firestore（原生模式，asia-east1，已建立）
+  - Secrets：GCP Secret Manager
 
-固定回覆圖片：
-  存放：frontend/public/certificate.jpg
-  URL：https://rexx.github.io/public/certificate.jpg
-  後端從環境變數 REPLY_IMAGE_URL 讀取，每次回覆自動附上，前端不傳遞
-
-固定回覆文字：
-  後端從環境變數 REPLY_TEXT 讀取，每次回覆自動附上，前端不傳遞
-
-Threads API 發文兩步流程（重要，所有發文都要走這兩步）：
-  Step 1：POST https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads_replies
-          Body: { media_type: "IMAGE", text: REPLY_TEXT, image_url: REPLY_IMAGE_URL, reply_to_id }
-          說明：這步是在 Meta 伺服器上「預先建立」一個媒體容器（container）。
-                Meta 會在背景下載並處理 image_url 的圖片，尚未對外發布任何內容。
-          回傳: { id: container_id }
-  Step 2：等待 20–30 秒
-          說明：Meta 需要時間從 REPLY_IMAGE_URL 拉取並處理圖片。
-                若太快進行 Step 3，發布會失敗（container 尚未 ready）。
-  Step 3：POST https://graph.threads.net/v1.0/{container_id}/publish
-          說明：這步才是真正把回覆文章發布到 Threads 上，對外可見。
-          回傳: { id: post_id }
-```
 
 ***
 
-## ⚠️ 已知限制與政策邊界
+## ⚠️ 已驗證的重要 Threads API 行為（實測修正）
 
-```
-1. Threads 每帳號每日發文上限約 250 則（以官方文件為準）
+1. reply_to_id 必須是數字 ID，不能用 shortcode
+   - Threads URL 的 /post/DU7J9o1EThx 是 shortcode，API 不接受
+   - 官方 API 沒有提供「shortcode → media id」的直接轉換端點
+   - 數字 ID 只能透過以下方式取得：
+     - a) 自己帳號的貼文：GET /me/threads?fields=id,permalink（只能查自己）
+     - b) Webhook mention payload（直接帶 id）← 這是唯一可靠的公開貼文來源
+
+2. URL 輸入路徑為何行不通：
+   - 官方 API 沒有「給 shortcode 回傳任意公開貼文 media id」的端點
+   - Keyword Search 可間接查到，但：
+     * 速率限制：500 次 / 7 天（不適合用戶觸發）
+     * 搜尋結果不精確，無法保證找到正確貼文
+     * 不適合做為 production 觸發機制
+   - 結論：URL 輸入路徑技術上不可靠，已廢棄
+
+3. Threads API 正確 Endpoints（已實測）：
+   - Step 1：POST https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads
+      - Params: media_type, text, image_url, reply_to_id, access_token
+      - 回傳: { id: container_id }
+
+   - Step 2：等待 30 秒（Meta 處理圖片需要時間）
+
+   - Step 3：POST https://graph.threads.net/v1.0/{THREADS_USER_ID}/threads_publish
+      - Params: creation_id=container_id, access_token
+      - 回傳: { id: post_id }
+
+   ❌ 錯誤 endpoint（不存在）：
+      /{THREADS_USER_ID}/threads_replies  → 會回傳 NOT_FOUND
+      /{container_id}/publish             → 會回傳 NOT_FOUND
+
+4. THREADS_USER_ID 必須是數字 ID（如 2522614479705xxxx），不能是 username
+   - 取得方式：GET https://graph.threads.net/v1.0/me?fields=id,username&access_token=...
+
+5. Webhook mention payload 直接包含目標貼文的數字 media id
+   - 這是唯一不需要 shortcode 轉換就能拿到他人貼文 media id 的官方方式
+   - payload 範例：{ id: "8901234", shortcode: "Pp", text: "hey @bot ...", username: "user123", ... }
+
+6. 從 mention 貼文往上查父層：
+   - GET /{media-id}?fields=id,text,root_post,replied_to
+   - root_post.id  → 整串 thread 的最頂層貼文 media id
+   - replied_to.id → 直接 parent（上一層）media id
+   - 兩個 field 只在 reply 上出現；若不存在，表示該貼文本身就是 root
+
+7. Bot 回覆策略：回覆到 mention 的直接 parent
+   - mention 在 reply 裡 → 回覆到 replied_to.id（mention 的 parent）
+   - mention 本身是 root → fallback 回覆到 mention 本身
+
+
+***
+
+## ⚠️ 已知限制
+
+1. Threads 每帳號每日發文上限約 250 則
 2. Webhook Advanced Access 需要 Meta App Review 通過才能收 live 資料
+   - 未通過前只能收到 sandbox 帳號的通知
 3. 不可對同一貼文重複回覆（Idempotency 保護）
-4. 不可用於大量騷擾、廣告 spam（違反 Meta Community Standards）
-5. Webhook trigger 不受 IP rate limit，但仍受 Idempotency 保護
-6. REPLY_IMAGE_URL 必須公開可存取（Meta 伺服器直接拉取）
-```
+4. Webhook trigger 不受 IP rate limit，但仍受 Idempotency 保護
+5. REPLY_IMAGE_URL 必須公開可存取（Meta 伺服器直接拉取）
+6. Webhook mentions 只有被 tag 的帳號是公開帳號才會觸發
+7. 使用者必須主動 @tag bot，bot 無法主動偵測任意貼文
+8. 惡意用戶可大量 @tag bot 消耗每日發文配額（250 則/日）
+   - 保護機制：每個 username 每日觸發上限由 USER_DAILY_LIMIT env var 控制（預設 5）
+   - 超過限制：靜默略過（回傳 200，不發文，記 log）
+
+
+***
+
+## GCP 專案資訊
+
+Project ID：taiwan-animal-crossing-booker
+Region：asia-east1
+Firestore Database：(default)，已建立，FIRESTORE_NATIVE
+
+Secret Manager（已建立）：
+  THREADS_ACCESS_TOKEN    → bot 帳號的 long-lived token
+  THREADS_USER_ID         → bot 帳號的數字 ID（已更新為正確數字 ID）
+  ADMIN_API_KEY           → 管理 API Bearer token
+  BYPASS_RATE_LIMIT_KEY   → 測試用後門 key
+  WEBHOOK_VERIFY_TOKEN    → Meta webhook handshake token
+  WEBHOOK_APP_SECRET      → Meta App Secret（驗 HMAC-SHA256）
+
+Cloud Run Service（已部署）：
+  https://asia-east1-taiwan-animal-crossing-booker.cloudfunctions.net
 
 ***
 
 ## Environment Variables
 
-```bash
-# GCP Secret Manager 儲存（敏感資訊）
-THREADS_ACCESS_TOKEN=     # bot 帳號的 Threads long-lived token
-THREADS_USER_ID=          # bot 帳號的 Threads user ID
-ADMIN_API_KEY=            # 管理 API 的 Bearer token（自訂隨機字串）
-WEBHOOK_VERIFY_TOKEN=     # Meta webhook handshake 驗證 token（自訂）
-WEBHOOK_APP_SECRET=       # Meta App Secret（驗 HMAC-SHA256 簽章）
+# GCP Secret Manager（敏感資訊）
+THREADS_ACCESS_TOKEN      # bot 帳號的 Threads long-lived token
+THREADS_USER_ID           # bot 帳號的數字 ID（非 username）
+ADMIN_API_KEY             # 管理 API Bearer token
+WEBHOOK_VERIFY_TOKEN      # Meta webhook handshake 驗證 token
+WEBHOOK_APP_SECRET        # Meta App Secret（HMAC-SHA256）
+BYPASS_RATE_LIMIT_KEY     # 測試用後門（production 設為空字串停用）
 
 # Cloud Functions 環境變數（非敏感）
-GCP_PROJECT_ID=
+GCP_PROJECT_ID=taiwan-animal-crossing-booker
 FIRESTORE_COLLECTION_REPLIES=replies
 FIRESTORE_COLLECTION_RATE_LIMITS=rate_limits
+FIRESTORE_COLLECTION_USER_LIMITS=user_daily_limits
 REPORT_THRESHOLD=3
-REPLY_IMAGE_URL=https://rexx.github.io/public/certificate.jpg
-REPLY_TEXT=               # 固定回覆文字內容
-ALLOWED_ORIGIN=           # GitHub Pages domain，CORS 用
-BYPASS_RATE_LIMIT_KEY=    # 開發測試用後門 key（production 留空則停用）
+USER_DAILY_LIMIT=5        # 每個 username 每日最多觸發次數（超過靜默略過，記 log）
+REPLY_IMAGE_URL=https://rexx.github.io/public/certificate.jpg   # 注意：含 /public/
+REPLY_TEXT=               # 固定回覆文字
+ALLOWED_ORIGIN=https://rexx.github.io
+THREADS_USERNAME=omawari.san.b.tw   # 用於組 threads_url
 
 # 前端（GitHub Actions secret）
-VITE_API_BASE_URL=        # Cloud Functions URL（含 https://）
-```
+VITE_API_BASE_URL=        # Cloud Functions base URL
+
+
+***
+
+## threads.js 已驗證實作（核心邏輯）
+
+export const threadsApi = {
+
+  // 查詢 mention 的直接 parent（replied_to.id）
+  // 若 mention 本身是 root（無 replied_to），回傳 mention 自己的 id
+  async getParentMediaId(mediaId) {
+    const res = await fetch(
+      `https://graph.threads.net/v1.0/${mediaId}?fields=id,replied_to&access_token=${process.env.THREADS_ACCESS_TOKEN}`
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    // 有 replied_to 代表是 reply，取 parent；否則就是 root，回傳自己
+    return data.replied_to?.id ?? data.id;
+  },
+
+  // 查詢並遞增 user 每日觸發次數，超過上限回傳 false
+  async checkAndIncrementUserLimit(username) {
+    const limit = parseInt(process.env.USER_DAILY_LIMIT ?? '5', 10);
+    const today = new Date().toISOString().slice(0, 10);  // YYYY-MM-DD
+    const ref = db.collection(process.env.FIRESTORE_COLLECTION_USER_LIMITS)
+                  .doc(`${username}_${today}`);
+
+    return await db.runTransaction(async (t) => {
+      const doc = await t.get(ref);
+      const count = doc.exists ? doc.data().count : 0;
+      if (count >= limit) return false;
+      t.set(ref, { count: count + 1, username, date: today }, { merge: true });
+      return true;
+    });
+  },
+
+  // Step 1：建立媒體容器（reply_to_id 必須是數字 ID）
+  async createMediaContainer(replyToId) {
+    const url = `https://graph.threads.net/v1.0/${process.env.THREADS_USER_ID}/threads`;
+    const params = new URLSearchParams({
+      media_type: 'IMAGE',
+      image_url: process.env.REPLY_IMAGE_URL,
+      text: process.env.REPLY_TEXT,
+      reply_to_id: replyToId,
+      access_token: process.env.THREADS_ACCESS_TOKEN
+    });
+    const res = await fetch(`${url}?${params}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.id;  // container_id
+  },
+
+  // Step 3：發布（等待 30 秒後呼叫）
+  async publishMediaContainer(containerId) {
+    const url = `https://graph.threads.net/v1.0/${process.env.THREADS_USER_ID}/threads_publish`;
+    const params = new URLSearchParams({
+      creation_id: containerId,   // 注意：參數名是 creation_id
+      access_token: process.env.THREADS_ACCESS_TOKEN
+    });
+    const res = await fetch(`${url}?${params}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.id;  // post_id
+  },
+
+  async deletePost(postId) {
+    const url = `https://graph.threads.net/v1.0/${postId}`;
+    const params = new URLSearchParams({ access_token: process.env.THREADS_ACCESS_TOKEN });
+    const res = await fetch(`${url}?${params}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.success;
+  }
+};
+
+> ⚠️ 舊版的 `getMediaIdByShortcode()` 和 `getRootMediaId()` 已移除。現在改為回覆到 parent（不是 root）。
+
+
+***
+
+## Webhook 主流程
+
+1. 使用者在任意貼文（或回覆）中 @tag bot 帳號
+
+2. Meta 推送 POST /webhook/threads，payload 帶有：
+   {
+     "id": "<mention 所在貼文的 media id>",   ← 數字 ID，直接可用
+     "username": "<tagging_user>",
+     "text": "...",
+     "shortcode": "...",
+     "permalink": "..."
+   }
+
+3. 後端驗證 HMAC-SHA256（X-Hub-Signature-256）
+
+4. Idempotency check：document ID = triggered_by_media_id
+   - 用 Firestore get(triggered_by_media_id) 直接查（不需 query）
+   - 已存在 → 直接回傳 200，不重複處理
+
+5. User 每日觸發次數檢查：checkAndIncrementUserLimit(username)
+   - 超過 USER_DAILY_LIMIT → 靜默略過，記 log，回傳 200
+   - log 格式：{ event: "user_limit_exceeded", username, date, limit: USER_DAILY_LIMIT }
+
+6. 查 mention 的直接 parent：getParentMediaId(mentionMediaId)
+   - 有 replied_to.id → replyToId = replied_to.id（mention 的 parent）
+   - 無 replied_to → replyToId = mentionMediaId（mention 本身是 root，fallback）
+
+7. createMediaContainer(replyToId) → container_id
+
+8. 寫入 Firestore（status: "pending", document ID = triggered_by_media_id）
+
+9. 等待 30 秒
+
+10. publishMediaContainer(container_id) → post_id
+
+11. 更新 Firestore（status: "active", post_id, published_at）
+
 
 ***
 
 ## Auth 策略
 
-```
-公開 API（任何人可呼叫，有 rate limit）：
-  POST /reply
+公開 API（rate limit 保護）：
   POST /report/{post_id}
   GET  /replies
   GET  /replies/{post_id}
-  GET  /health
 
-Webhook（Meta 呼叫，需驗 HMAC 簽章）：
-  GET  /webhook/threads   → Meta handshake 驗證
-  POST /webhook/threads   → 接收 mention 通知
+Webhook（Meta 呼叫，HMAC 驗證）：
+  GET  /webhook/threads   → handshake
+  POST /webhook/threads   → mention 通知（主要觸發路徑）
 
-管理 API（只有你可呼叫）：
+管理 API（Bearer token）：
   DELETE /reply/{post_id}
   GET    /admin/replies
 
-驗證方式：
-  管理 API → Header: Authorization: Bearer {ADMIN_API_KEY}
-             缺少或不符 → 401
-  Webhook  → Header: X-Hub-Signature-256: sha256={HMAC}
-             用 WEBHOOK_APP_SECRET 重新計算比對，不符 → 403
+Rate limit 後門：
+  Header: X-Bypass-Key: {BYPASS_RATE_LIMIT_KEY}
+  → 跳過 rate limit，BYPASS_RATE_LIMIT_KEY 為空時自動停用
 
-Rate limit 後門（開發測試用）：
-  任何公開 API 加上 Header: X-Bypass-Key: {BYPASS_RATE_LIMIT_KEY}
-  若 BYPASS_RATE_LIMIT_KEY 環境變數不為空且 key 符合 → 跳過 rate limit 檢查
-  Production 部署時將 BYPASS_RATE_LIMIT_KEY 設為空字串即自動停用
-```
+❌ 已移除：
+  POST /reply   → URL 輸入路徑已廢棄
+  GET  /health  → Cloud Functions 為 managed service，GCP Console / Cloud Logging 直接觀察
+
 
 ***
 
 ## Firestore Schema
 
-```typescript
 // Collection: "replies"
-// Document ID: container_id（pending 期間）→ 發布後改為 post_id
-
+// Document ID: triggered_by_media_id（mention 所在貼文的 media id，同時保證 Idempotency）
 interface ReplyDocument {
-  post_id: string | null;           // Threads 發布後的 media ID（pending 時 null）
-  container_id: string;             // Threads step 1 回傳的容器 ID
-  reply_to_url: string;             // 使用者輸入的目標 Threads URL
-  reply_to_id: string;              // 從 URL 解析出的 post ID
-  threads_url: string | null;       // 發布後的 bot 回覆 URL
-  status: "pending"                 // 容器建立中，尚未 publish
-          | "active"                // 已成功發布
-          | "deleted";              // 已刪除（撤回或自動刪除）
-  trigger_source: "manual"          // 使用者在網站手動輸入 URL
-                | "webhook_mention";// 路人在 Threads tag bot 觸發
-  triggered_by_media_id: string | null; // webhook 觸發時來源貼文 ID
-  report_count: number;             // 檢舉次數（原子 increment，預設 0）
-  reporter_ips: string[];           // 僅後端使用，不回傳前端
+  post_id: string | null;            // 發佈後的 bot 回覆 media id（pending 時為 null）
+  container_id: string;              // 草稿容器 ID
+  reply_to_media_id: string;         // bot 實際回覆的目標 media id（mention 的 parent）
+  reply_to_shortcode: string | null; // 從 webhook payload 的 shortcode 欄位取得（可選）
+  reply_to_permalink: string | null; // 從 webhook payload 的 permalink 欄位取得（可選）
+  threads_url: string | null;        // https://www.threads.net/@{THREADS_USERNAME}/post/{post_id}
+  status: "pending" | "active" | "deleted";
+  trigger_source: "webhook_mention"; // URL 輸入路徑已廢棄，只剩此值
+  triggered_by_media_id: string;     // mention 所在的那則貼文 media id（= document ID，冗餘存一份）
+  triggered_by_username: string;     // 觸發用戶的 username（用於 log 追蹤）
+  report_count: number;
+  reporter_ips: string[];
   created_at: Timestamp;
   published_at: Timestamp | null;
   deleted_at: Timestamp | null;
 }
 
 // Collection: "rate_limits"
-// Document ID: {ip}_{endpoint}  e.g. "8.8.8.8_reply"
+// Document ID: {ip}_{endpoint}
 interface RateLimitDocument {
   count: number;
   window_start: Timestamp;
+}
+
+// Collection: "user_daily_limits"
+// Document ID: {username}_{YYYY-MM-DD}
+interface UserDailyLimitDocument {
+  username: string;
+  date: string;              // YYYY-MM-DD
+  count: number;
 }
 
 // Firestore Indexes（需手動建立）：
 //   複合索引 1：status ASC + created_at DESC
 //   複合索引 2：report_count DESC
 //   複合索引 3：trigger_source ASC + created_at DESC
-```
+//   複合索引 4：triggered_by_username ASC + created_at DESC（用於查詢特定用戶觸發記錄）
+
 
 ***
 
 ## Rate Limits
 
-```
-實作機制：Firestore rate_limits collection
+POST /report：     每 IP 每 10 分鐘 2 次
+GET endpoints：    不限
+Webhook：          不受 IP rate limit，但有 user daily limit（USER_DAILY_LIMIT）
+管理 API：         不限
 
-POST /reply：        每 IP 每 10 分鐘 2 次
-POST /report：       每 IP 每 10 分鐘 2 次
-GET /replies：       不限
-GET /replies/:id：   不限
-POST /webhook：      不受 IP rate limit（Meta 呼叫）
-管理 API：           不限（Auth 保護）
+❌ 已移除：
+  POST /reply 的 rate limit（端點已廢棄）
 
-後門（開發測試）：
-  Request Header 帶 X-Bypass-Key: {BYPASS_RATE_LIMIT_KEY}
-  → 跳過所有 rate limit 檢查
-  → BYPASS_RATE_LIMIT_KEY 為空時自動停用此後門
-
-邏輯：
-  讀取 rate_limits/{ip}_{endpoint}
-  若 now - window_start > 600 秒 → 重置 count = 1
-  否則 → increment count
-  若 count > 2 → 回傳 429，retry_after = window_end - now（秒）
-```
 
 ***
 
-## 錯誤碼規範
+## 錯誤碼
 
-```
-400 BAD_REQUEST        → 欄位格式錯誤
-401 UNAUTHORIZED       → 管理 API 缺少或錯誤的 ADMIN_API_KEY
+401 UNAUTHORIZED       → 缺少或錯誤的 ADMIN_API_KEY
 403 FORBIDDEN          → Webhook HMAC 驗證失敗
 404 NOT_FOUND          → 找不到指定 post_id
-409 CONFLICT           → 重複操作（已回覆 / 已刪除 / 已檢舉）
-429 RATE_LIMITED       → 超過 rate limit
+409 ALREADY_REPLIED    → 同一 triggered_by_media_id 已處理（Idempotency）
+409 ALREADY_REPORTED   → 同一 IP 已檢舉
+429 RATE_LIMITED       → 超過 rate limit，附 retry_after（秒）
 500 THREADS_API_ERROR  → Threads API 呼叫失敗
-500 INTERNAL_ERROR     → 其他伺服器錯誤
-```
+500 INTERNAL_ERROR     → 其他錯誤
+
+❌ 已移除：
+  400 INVALID_URL      → URL 輸入路徑已廢棄
+
 
 ***
 
-## API Endpoints（共 9 個）
+## Deploy 指令
 
-### 1. `POST /reply`（公開）
+# webhook handler（主要入口，timeout > 60s）
+gcloud functions deploy webhookThreads \
+  --gen2 --runtime=nodejs22 --region=asia-east1 \
+  --source=. --entry-point=webhookThreads \
+  --trigger-http --allow-unauthenticated \
+  --memory=512Mi --timeout=120s \
+  --set-env-vars GCP_PROJECT_ID=taiwan-animal-crossing-booker,\
+FIRESTORE_COLLECTION_REPLIES=replies,\
+FIRESTORE_COLLECTION_USER_LIMITS=user_daily_limits,\
+USER_DAILY_LIMIT=5,\
+REPLY_IMAGE_URL=https://rexx.github.io/public/certificate.jpg,\
+REPLY_TEXT=testing,\
+THREADS_USERNAME=omawari.san.b.tw \
+  --set-secrets THREADS_ACCESS_TOKEN=THREADS_ACCESS_TOKEN:latest,\
+THREADS_USER_ID=THREADS_USER_ID:latest,\
+WEBHOOK_VERIFY_TOKEN=WEBHOOK_VERIFY_TOKEN:latest,\
+WEBHOOK_APP_SECRET=WEBHOOK_APP_SECRET:latest
 
-**Request Body**
-```typescript
-{
-  reply_to_url: string;  // 必填，regex: /^https:\/\/threads\.net\/@[\w.]+\/post\/\d+$/
-  // text 與 image_url 均由後端從環境變數自動注入，前端不傳
-}
-```
+# 其餘 functions 類似，調整 entry-point 和相關 env vars
 
-**後端流程**
-```
-1. 驗證 reply_to_url 格式
-2. Rate limit 檢查（IP，可被 X-Bypass-Key 跳過）
-3. 解析 reply_to_url → reply_to_id（regex /post\/(\d+)/）
-4. Idempotency 檢查：Firestore 查 reply_to_id + status=active → 若存在回 409
-5. POST Threads API step 1（text=REPLY_TEXT, image_url=REPLY_IMAGE_URL）→ 取得 container_id
-6. 寫入 Firestore（status: "pending", trigger_source: "manual"）
-7. 等待 30 秒
-8. POST Threads API step 2 publish → 取得 post_id
-9. 更新 Firestore（status: "active", post_id, threads_url, published_at）
-```
-
-**Response**
-```typescript
-201: { success: true; post_id: string; threads_url: string; status: "active"; }
-400: { error: "INVALID_URL"; message: string; }
-409: { error: "ALREADY_REPLIED"; post_id: string; threads_url: string; }
-429: { error: "RATE_LIMITED"; retry_after: number; }
-500: { error: "THREADS_API_ERROR" | "INTERNAL_ERROR"; message: string; }
-```
 
 ***
 
-### 2. `DELETE /reply/{post_id}`（管理，需 Auth）
+## 目前完成狀態
 
-**後端流程**
-```
-1. 驗證 ADMIN_API_KEY
-2. 查 Firestore → 確認存在且 status != "deleted"
-3. 呼叫 Threads DELETE API → DELETE /v1.0/{post_id}
-4. 更新 Firestore：status: "deleted", deleted_at: now()
-```
+✅ GCP Project 建立
+✅ Firestore Database 建立（asia-east1，native mode）
+✅ Secret Manager 6 個 secrets 建立
+✅ postReply Cloud Function 部署並驗證可運作
+✅ Threads API 兩步發布流程（createContainer + publish）實測成功
+✅ 架構決策：改為 Webhook mentions 主路徑，廢棄 URL 輸入路徑
+✅ 回覆策略：回覆到 mention 的 parent（不是 root）
+✅ User daily limit 防濫用機制設計
+✅ Idempotency 改用 document ID = triggered_by_media_id（更高效）
 
-**Response**
-```typescript
-200: { success: true; }
-401: { error: "UNAUTHORIZED"; }
-404: { error: "NOT_FOUND"; }
-409: { error: "ALREADY_DELETED"; }
-500: { error: "THREADS_API_ERROR" | "INTERNAL_ERROR"; message: string; }
-```
+🔲 Webhook handler 完整實作（handleWebhook Cloud Function）
+🔲 其餘 Cloud Functions 待部署（deleteReply, getReplies, getReply, adminReplies, report）
+🔲 Firestore 複合索引建立
+🔲 Frontend 改版（移除 URL 輸入介面，改為說明頁：「請在 Threads 貼文中 @tag @omawari.san.b.tw」）
+🔲 GitHub Pages 部署
+🔲 Threads Webhook 設定（Meta App Dashboard）
+🔲 Meta App Review（Advanced Access）申請
 
-***
-
-### 3. `POST /report/{post_id}`（公開）
-
-**Request Body**
-```typescript
-{
-  reason?: "spam" | "harassment" | "misinformation" | "other";
-}
-```
-
-**後端流程**
-```
-1. Rate limit 檢查（IP，可被 X-Bypass-Key 跳過）
-2. 確認 post_id 存在且 status = "active"
-3. IP 去重：若 reporter_ips 已包含此 IP → 回 409
-4. Firestore 原子 increment report_count + arrayUnion(ip)
-5. 讀取更新後的 report_count
-6. 若 report_count >= REPORT_THRESHOLD(3) → 執行刪除流程（同 DELETE）
-```
-
-**Response**
-```typescript
-200: { success: true; report_count: number; threshold: number; auto_deleted: boolean; }
-404: { error: "NOT_FOUND"; }
-409: { error: "ALREADY_REPORTED"; }
-429: { error: "RATE_LIMITED"; retry_after: number; }
-```
 
 ***
 
-### 4. `GET /webhook/threads`（Meta Handshake）
+## 附錄：Threads API 的 ID 關係整理
 
-**Query Params（Meta 送來）**
-```
-hub.mode = "subscribe"
-hub.verify_token = {WEBHOOK_VERIFY_TOKEN}
-hub.challenge = "隨機字串"
-```
+### 各種 ID 的定義
 
-**後端流程**
-```
-1. 確認 hub.verify_token === WEBHOOK_VERIFY_TOKEN
-2. 回傳 hub.challenge（純文字 200）
-```
+- **post id（= threads media id）**  
+  已發佈貼文在 Graph Threads 的主鍵 ID（純數字）。後續操作都用這個 ID。
 
-**Response**
-```
-200: hub.challenge 純文字
-403: "Forbidden"
-```
+- **short code（shortcode）**  
+  貼文在公開 URL 裡的短碼，例如 `https://www.threads.net/@user/post/ABC123` 裡的 `ABC123`。  
+  方便人類閱讀和分享，但 API 不接受用它做 `reply_to_id`。
 
-***
+- **container id（Media Container ID）**  
+  發文前先建立「容器」，API 回傳容器 ID，之後用它發布成真正的貼文。  
+  發布後就拿到 post id / media id，不再用 container id。
 
-### 5. `POST /webhook/threads`（接收 Mention 通知）
+- **media id**  
+  就是 post id，已發佈貼文的媒體物件 ID。
 
-**Header 驗證**
-```
-X-Hub-Signature-256: sha256={HMAC-SHA256(payload, WEBHOOK_APP_SECRET)}
-不符 → 403
-```
+- **reply_to_id**  
+  建立回覆時的參數，指定要回的貼文的 media id（必須是數字 ID）。
 
-**Payload（Meta 送來）**
-```typescript
-{
-  entry: [{
-    id: string;
-    time: number;
-    changes: [{
-      field: "mentions";
-      value: {
-        media_id: string;
-        mentioned_media_id: string;
-        text: string;
-      }
-    }]
-  }]
-}
-```
+### 關係流程
 
-**後端流程**
-```
-1. 驗證 HMAC 簽章
-2. 解析 payload → 取出 media_id
-3. 組出 reply_to_url: https://threads.com/post/{media_id}
-4. Idempotency 檢查（同 POST /reply）
-5. 執行回覆流程，trigger_source: "webhook_mention"
-6. 立即回傳 200（Meta 要求，否則會重試）
-```
+1. **發文前**：建立 container → 得到 container id
+2. **發布時**：用 container id 呼叫 `/threads_publish` → 產生 media id（post id）
+3. **URL 前端**：media 有 shortcode，組成 permalink 供網頁訪問
+4. **做回覆**：新建 container，body 加 `reply_to_id = 目標 media id`，publish 後這則 reply 也有自己的 media id
+5. **查對話樹**：用某個 media id 為起點，呼叫 `/replies` 或 `/conversation` 撈整串 thread
 
-**Response**
-```typescript
-200: { success: true; }
-403: "Forbidden"
-```
+### shortcode 無法直接對應 media id 的原因
+
+- **兩套系統**：shortcode 給前端 URL routing，media id 是後端資料庫主鍵
+- **隱私保護**：防止大規模爬蟲，官方 API 不開放任意查詢
+- **API 設計哲學**：以「自己帳號」為中心，非操作任意公開帳號的平台
+
+### 從 URL 拿到 media id 的唯一官方方法
+
+**Webhook mentions**：使用者 @tag bot 帳號 → Webhook payload 直接帶 `id`（media id）  
+這是取得他人公開貼文 media id 最可靠的官方途徑。
+
 
 ***
 
-### 6. `GET /replies`（公開）
+## 視覺化範例：Bot 回覆到 Parent
 
-**Query Params**
-```typescript
-limit?: number;    // 預設 20，最大 100，最小 1
-cursor?: string;   // base64(JSON.stringify({ last_created_at, last_post_id }))
-```
+A (root 貼文)
+  └── B (reply)
+        └── C (reply，使用者在此 @tag bot)   ← Webhook 收到 C 的 media id
+              
+Bot 回覆到 B（C 的 parent），不是 A（root）也不是 C 本身
 
-**注意：**
-- 只回傳 `status = "active"` 的資料
-- 依 `created_at DESC` 排序（最新在最上面）
-
-**Response**
-```typescript
-200: {
-  replies: Array<{
-    post_id: string;
-    reply_to_url: string;
-    threads_url: string;
-    report_count: number;
-    threshold: number;
-    status: "active";
-    created_at: string;       // ISO 8601
-  }>;
-  next_cursor: string | null; // null 代表無下一頁
-  total: number;
-}
-```
-
-***
-
-### 7. `GET /replies/{post_id}`（公開）
-
-**Response**
-```typescript
-200: {
-  post_id: string;
-  threads_url: string | null;
-  reply_to_url: string;
-  report_count: number;
-  threshold: number;
-  status: "pending" | "active" | "deleted";
-  created_at: string;
-  published_at: string | null;
-}
-```
-
-***
-
-### 8. `GET /admin/replies`（管理，需 Auth）
-
-**Query Params**
-```typescript
-status?: "active" | "deleted" | "pending" | "all";         // 預設 "all"
-trigger_source?: "manual" | "webhook_mention" | "all";     // 預設 "all"
-search?: string;                                           // 關鍵字搜尋
-limit?: number;
-cursor?: string;
-```
-
-**注意：** 依 `created_at DESC` 排序。
-
-**Response**
-```typescript
-200: {
-  replies: Array<{
-    post_id: string;
-    reply_to_url: string;
-    threads_url: string | null;
-    report_count: number;
-    threshold: number;
-    reporter_count: number;
-    status: "pending" | "active" | "deleted";
-    trigger_source: "manual" | "webhook_mention";
-    triggered_by_media_id: string | null;
-    created_at: string;
-    deleted_at: string | null;
-  }>;
-  next_cursor: string | null;
-  total: number;
-}
-```
-
-***
-
-### 9. `GET /health`（公開）
-
-**Response**
-```typescript
-200: { status: "healthy"; version: string; timestamp: string; }
-```
-
-***
-
-## 前端頁面（共 4 個）
-
-### 路由清單
-
-| 路由 | 頁面 | 權限 | 對應 API |
-|------|------|------|---------|
-| `/` | 首頁 / 發文頁 | 公開 | `POST /reply` |
-| `/replies` | 回覆列表 | 公開 | `GET /replies` |
-| `/replies/:post_id` | 單篇回覆頁 | 公開（管理員有額外操作） | `GET /replies/{post_id}` |
-| `/admin` | 管理頁 | 需 ADMIN_API_KEY | `GET /admin/replies` |
-
-### 路由流程
-
-```
-/  →（送出成功）→  /replies/:post_id
-                         ↑
-/replies  →（點任一筆）→  /replies/:post_id
-                         ↑
-/admin    →（點任一筆）→  /replies/:post_id（+管理操作）
-```
-
-### 1. `/`（首頁 / 發文頁）
-```
-表單欄位：
-  reply_to_url  [input text]   必填
-
-行為：
-  送出 → POST /reply
-  成功 → redirect /replies/{post_id}
-
-錯誤處理（行內顯示）：
-  INVALID_URL     → "請輸入有效的 Threads 貼文連結"
-  RATE_LIMITED    → "請求太頻繁，請 {retry_after} 秒後再試"
-  ALREADY_REPLIED → "此貼文已有回覆" + 附連結
-```
-
-### 2. `/replies`（回覆列表）
-```
-顯示：
-  - 呼叫 GET /replies（只顯示 active，created_at DESC）
-  - 每筆：reply_to_url, threads_url, report_count/threshold, created_at
-  - 點擊任一筆 → /replies/:post_id
-  - 頁面底部顯示「載入更多」按鈕
-    → 按下才呼叫下一頁（cursor-based）
-    → 無下一頁時隱藏按鈕
-```
-
-### 3. `/replies/:post_id`（單篇回覆頁）
-```
-所有人顯示：
-  - threads_url 連結按鈕
-  - reply_to_url 連結
-  - status badge（pending / active / deleted）
-  - report_count / threshold
-  - [檢舉] 按鈕（POST /report，送出後 disabled + 顯示目前數量）
-  - pending 狀態顯示靜態提示文字：「回覆發布中，請稍後手動重新整理」
-    （不自動輪詢）
-
-管理員額外顯示（localStorage 有 ADMIN_API_KEY）：
-  - reporter_count
-  - trigger_source badge（manual / webhook_mention）
-  - triggered_by_media_id（若有）
-  - [刪除] 按鈕（確認後 DELETE /reply/:post_id）
-```
-
-### 4. `/admin`（管理頁）
-```
-Auth：
-  讀取 localStorage ADMIN_API_KEY
-  若無 → 顯示輸入框，輸入後存入 localStorage 並 refresh
-
-顯示（GET /admin/replies，created_at DESC）：
-  - 篩選：status / trigger_source
-  - 搜尋：關鍵字
-  - 每筆：reply_to_url, status badge, trigger_source badge,
-          report_count/threshold, created_at, [檢視] [刪除]
-  - [檢視] → /replies/:post_id
-  - [刪除] → 確認 dialog → DELETE /reply/:post_id → 更新列表
-  - 頁面底部「載入更多」按鈕（同列表頁，不自動載入）
-```
-
-***
-
-## 目錄結構
-
-### Frontend
-```
-frontend/
-├── src/
-│   ├── pages/
-│   │   ├── Home.tsx
-│   │   ├── RepliesList.tsx
-│   │   ├── ReplyDetail.tsx
-│   │   └── Admin.tsx
-│   ├── components/
-│   │   ├── ReplyForm.tsx
-│   │   ├── ReplyCard.tsx
-│   │   ├── ReportButton.tsx
-│   │   └── StatusBadge.tsx
-│   ├── lib/
-│   │   ├── api.ts          # 所有 API 呼叫封裝
-│   │   └── auth.ts         # ADMIN_API_KEY localStorage 管理
-│   ├── App.tsx             # React Router 路由設定
-│   └── main.tsx
-├── public/
-│   ├── certificate.jpg     # 固定回覆圖片
-│   └── 404.html            # SPA fallback（build 後 cp index.html）
-├── .env.local              # VITE_API_BASE_URL=...
-├── vite.config.ts          # base: '/repo-name/'（非 user page 時）
-├── .github/
-│   └── workflows/
-│       └── deploy.yml
-└── package.json
-```
-
-### Backend
-```
-backend/
-├── functions/
-│   ├── index.js            # 匯出所有 9 個 function
-│   ├── reply.js            # POST /reply
-│   ├── deleteReply.js      # DELETE /reply/:post_id
-│   ├── report.js           # POST /report/:post_id
-│   ├── getReplies.js       # GET /replies（公開）
-│   ├── getReply.js         # GET /replies/:post_id（公開）
-│   ├── adminReplies.js     # GET /admin/replies（管理）
-│   ├── webhook.js          # GET+POST /webhook/threads
-│   ├── health.js           # GET /health
-│   └── lib/
-│       ├── threads.js      # Threads API client（兩步發布、刪除）
-│       ├── firestore.js    # Firestore CRUD
-│       └── rateLimit.js    # Rate limit 邏輯（含 bypass 後門）
-├── .env.local
-└── package.json
-```
-
-***
-
-## 費用估算
-
-```
-GitHub Pages：        $0
-GitHub Actions：      $0
-GCP Cloud Functions： $0（每月 200 萬次免費）
-GCP Firestore：       $0（免費額度內）
-GCP Secret Manager：  $0（5 個 secrets）
-Cloudflare Proxy：    $0（若之後想加）
-
-每月費用：$0
-每年費用：$0
-```
-
-***
-
-## Deploy Checklist
-
-```
-GitHub：
-  ✅ 建立 repo（monorepo：frontend/ + backend/）
-  ✅ 將 certificate.jpg 放入 frontend/public/
-  ✅ Settings → Pages → Source: GitHub Actions
-  ✅ Actions secret：VITE_API_BASE_URL
-
-GCP：
-  ✅ 建立 GCP Project
-  ✅ 啟用 APIs：Cloud Functions, Firestore, Secret Manager
-  ✅ Secret Manager 新增 5 個 secrets
-  ✅ Firestore 建立 3 個複合索引
-  ✅ Cloud Functions CORS 設定：允許 GitHub Pages domain（ALLOWED_ORIGIN）
-  ✅ 環境變數設定：REPLY_IMAGE_URL, REPLY_TEXT, REPORT_THRESHOLD,
-                   ALLOWED_ORIGIN, BYPASS_RATE_LIMIT_KEY（開發期間）
-  ✅ Deploy 9 個 Cloud Functions（region: asia-east1）
-  ✅ 上線前將 BYPASS_RATE_LIMIT_KEY 設為空字串
-
-Meta / Threads：
-  ✅ Meta Developer App 建立
-  ✅ 權限申請：threads_basic, threads_content_publish,
-               threads_manage_replies, threads_delete
-  ✅ Webhook 設定：callback URL + verify token + 訂閱 mentions
-  ✅ Advanced Access 申請（Webhook live data）
-  ✅ Long-lived token 存入 Secret Manager
-```
+若使用者直接在 A @tag bot（A 沒有 parent）：
+  Bot fallback 回覆到 A 本身
